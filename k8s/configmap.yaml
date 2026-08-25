@@ -4,5 +4,5 @@ metadata:
   name: notifications-worker-config
   namespace: fcgames
 data:
-  rabbitmq-host: "rabbitmq"
+  rabbitmq-host: "fcg-rabbitmq"
   aspnetcore-urls: "http://+:5004"
