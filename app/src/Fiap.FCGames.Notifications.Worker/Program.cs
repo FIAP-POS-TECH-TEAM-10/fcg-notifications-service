@@ -2,6 +2,7 @@ using Fiap.FCGames.Notifications.Worker.Consumers;
 using Fiap.FCGames.Notifications.Worker.Middleware;
 using MassTransit;
 using Serilog;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +50,13 @@ builder.Services.AddHealthChecks();
 var app = builder.Build();
 
 app.UseCorrelationId();
+
+// Middleware para métricas HTTP (latência, status code, etc.)
+app.UseRouting();
+app.UseHttpMetrics();
+
+// Endpoint padrão /metrics
+app.MapMetrics();
 
 app.MapHealthChecks("/health");
 
