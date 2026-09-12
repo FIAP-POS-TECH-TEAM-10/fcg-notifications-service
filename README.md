@@ -33,11 +33,18 @@ Não há outros endpoints HTTP — o serviço é orientado a eventos.
 
 | Variável | Default (dev) | Descrição |
 |----------|---------------|-----------|
-| `RabbitMQ__Host` | `localhost` | Host do RabbitMQ |
+| `RabbitMQ__Host` | `localhost` | Host do RabbitMQ (usado se `Messaging__Provider` não for `Sqs`) |
 | `RabbitMQ__Username` | `guest` | Usuário RabbitMQ |
 | `RabbitMQ__Password` | `guest` | Senha RabbitMQ |
+| `Messaging__Provider` | — | `Sqs` usa Amazon SQS/SNS (deploy AWS). Vazio + `RabbitMQ__Host` → RabbitMQ. Nenhum dos dois → in-memory |
+| `AWS__Region` | `sa-east-1` | Região usada pelo transporte SQS/SNS quando `Messaging__Provider=Sqs` |
 
 > Em produção, RabbitMQ é exposto via env vars (nunca hardcoded no appsettings).
+>
+> **Mensageria:** transporte escolhido em runtime (`Program.cs`) — os consumers não mudam entre
+> RabbitMQ e SQS. Este repo ainda **não tem infra/deploy AWS** — para rodar com SQS de verdade
+> (não só localmente), vai precisar de uma Task Role do ECS com permissão SQS/SNS quando a infra
+> for criada (ver o mesmo padrão em `fcg-users-api/infra/ecs.tf`).
 > O `nuget.config` usa `%NUGET_AUTH_TOKEN%` (PAT com scope `read:packages`) para
 > restaurar o pacote `FCGames.IntegrationEvents` do feed do GitHub Packages.
 
