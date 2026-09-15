@@ -6,6 +6,12 @@ Worker **puro e stateless**: não possui banco de dados nem CRUD HTTP. Apenas
 consome eventos do RabbitMQ (via MassTransit) e produz **logs JSON estruturados**
 (Serilog). A prova de funcionamento na demo é via `docker logs` / `kubectl logs`.
 
+> **Fase 3 (AWS):** este worker é o caminho **local/legado**. Na entrega em nuvem, ele é
+> substituído pela função serverless [`fcg-notifications-lambda`](https://github.com/FIAP-POS-TECH-TEAM-10/fcg-notifications-lambda)
+> (aciona sob demanda via SQS, sem container rodando 24/7). Este repo continua útil pra
+> rodar tudo localmente via `docker compose` (sem depender da AWS), mas não tem — nem
+> vai ganhar — deploy próprio na AWS.
+
 ## Eventos consumidos
 
 | Evento | Origem | Fila RabbitMQ | Log gerado |
@@ -25,7 +31,7 @@ Notificacao: email-boas-vindas | destinatario: maria@exemplo.com | usuarioId: 3f
 
 | Método | Rota | Auth | Descrição |
 |--------|------|------|-----------|
-| GET | `/health` | — | Liveness/readiness probe (k8s) |
+| GET | `/health` | — | Liveness/readiness probe (orquestrador local: Docker/Kubernetes) |
 
 Não há outros endpoints HTTP — o serviço é orientado a eventos.
 
