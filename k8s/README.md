@@ -19,8 +19,10 @@ docker build -t fcg-notifications-worker:latest .
 
 ### 2. Aplicar Manifestos
 
+> **Atenção:** crie o Secret (seção abaixo) **antes** de aplicar e não use `kubectl apply -f k8s/` na pasta inteira: isso aplicaria o `secret.yaml` modelo (valores `REPLACE_ME`) por cima do Secret real.
+
 ```bash
-kubectl apply -f k8s/
+kubectl apply -f k8s/configmap.yaml -f k8s/deployment.yaml -f k8s/service.yaml
 ```
 
 ### 3. Verificar Status
