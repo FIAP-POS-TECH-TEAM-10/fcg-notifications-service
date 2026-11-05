@@ -42,6 +42,14 @@ kubectl logs -n fcgames -l app=notifications-worker -f
 
 **IMPORTANTE**: Altere os valores dos Secrets em produção!
 
+O `secret.yaml` versionado é só um **modelo** (valores `REPLACE_ME`). Crie o Secret real com as suas credenciais:
+
+```bash
+kubectl create secret generic notifications-worker-secret -n fcgames \
+  --from-literal=rabbitmq-username="$RABBITMQ__USERNAME" \
+  --from-literal=rabbitmq-password="$RABBITMQ__PASSWORD"
+```
+
 ## Acesso
 
 ### Port Forward para health check

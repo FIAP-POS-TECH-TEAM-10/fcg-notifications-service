@@ -40,8 +40,8 @@ Não há outros endpoints HTTP — o serviço é orientado a eventos.
 | Variável | Default (dev) | Descrição |
 |----------|---------------|-----------|
 | `RabbitMQ__Host` | `localhost` | Host do RabbitMQ (usado se `Messaging__Provider` não for `Sqs`) |
-| `RabbitMQ__Username` | `guest` | Usuário RabbitMQ |
-| `RabbitMQ__Password` | `guest` | Senha RabbitMQ |
+| `RabbitMQ__Username` | (obrigatório, sem padrão) | Usuário RabbitMQ |
+| `RabbitMQ__Password` | (obrigatório, sem padrão) | Senha RabbitMQ |
 | `Messaging__Provider` | — | `Sqs` usa Amazon SQS/SNS (deploy AWS). Vazio + `RabbitMQ__Host` → RabbitMQ. Nenhum dos dois → in-memory |
 | `AWS__Region` | `sa-east-1` | Região usada pelo transporte SQS/SNS quando `Messaging__Provider=Sqs` |
 
@@ -81,3 +81,5 @@ app/src/
 
 > Serviço **stateless** e orientado a eventos — sem `Infra`/EF Core, e sem as camadas
 > `Application`/`Domain` (não há CQRS, validação HTTP nem regras de domínio aqui).
+
+> **Rodando fora do docker-compose:** exporte `RABBITMQ__USERNAME` e `RABBITMQ__PASSWORD` (não há valores padrão no código nem nos `appsettings`; o compose do `fcg-orchestration` os injeta a partir do `.env`).
