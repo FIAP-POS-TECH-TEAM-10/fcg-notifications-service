@@ -1,85 +1,41 @@
-# fcg-notifications-api
+# fcg-notifications-service (worker de notificações)
 
-Microsserviço de notificações do **FCGames** (Tech Challenge FIAP — Fase 2).
+Notificações do FCGames **no ambiente local** (`docker compose` com RabbitMQ). Consome os eventos
+e escreve logs JSON simulando os e-mails; não tem banco nem API, só `/health`.
+Na AWS quem faz isso é a Lambda [`fcg-notifications-lambda`](https://github.com/FIAP-POS-TECH-TEAM-10/fcg-notifications-lambda).
 
-Worker **puro e stateless**: não possui banco de dados nem CRUD HTTP. Apenas
-consome eventos do RabbitMQ (via MassTransit) e produz **logs JSON estruturados**
-(Serilog). A prova de funcionamento na demo é via `docker logs` / `kubectl logs`.
+## Eventos
 
-> **Fase 3 (AWS):** este worker é o caminho **local/legado**. Na entrega em nuvem, ele é
-> substituído pela função serverless [`fcg-notifications-lambda`](https://github.com/FIAP-POS-TECH-TEAM-10/fcg-notifications-lambda)
-> (aciona sob demanda via SQS, sem container rodando 24/7). Este repo continua útil pra
-> rodar tudo localmente via `docker compose` (sem depender da AWS), mas não tem — nem
-> vai ganhar — deploy próprio na AWS.
+| Evento | Fila | Log (`tipo`) |
+|---|---|---|
+| `UsuarioCriadoEvento` | `notifications-usuario-criado` | `email-boas-vindas` (destinatário, usuarioId, correlationId) |
+| `PagamentoProcessadoEvento` | `notifications-pagamento-processado` | Aprovado: `email-confirmacao-compra` (jogo, valor) · Rejeitado: `email-pagamento-rejeitado` (jogo, motivo) |
 
-## Eventos consumidos
-
-| Evento | Origem | Fila RabbitMQ | Log gerado |
-|--------|--------|---------------|------------|
-| `UsuarioCriadoEvento` | UsersAPI | `notifications-usuario-criado` | `tipo=email-boas-vindas`, destinatário, usuarioId, correlationId |
-| `PagamentoProcessadoEvento` | PaymentsAPI | `notifications-pagamento-processado` | Aprovado: `tipo=email-confirmacao-compra` (jogo, valor); Rejeitado: `tipo=email-pagamento-rejeitado` (jogo, motivo) |
-
-Os contratos vêm do pacote NuGet [`FCGames.IntegrationEvents`](https://github.com/FIAP-POS-TECH-TEAM-10/fcg-integration-events) — nunca duplicados localmente.
-
-Exemplo de log (boas-vindas):
-
-```
-Notificacao: email-boas-vindas | destinatario: maria@exemplo.com | usuarioId: 3f2a... | correlationId: 9b1c...
-```
+Contratos: [`fcg-integration-events`](https://github.com/FIAP-POS-TECH-TEAM-10/fcg-integration-events).
 
 ## Endpoints
 
-| Método | Rota | Auth | Descrição |
-|--------|------|------|-----------|
-| GET | `/health` | — | Liveness/readiness probe (orquestrador local: Docker/Kubernetes) |
-
-Não há outros endpoints HTTP — o serviço é orientado a eventos.
+| Endpoint | Acesso | O que faz |
+|---|---|---|
+| `GET /health` | anônimo | health check |
 
 ## Variáveis de ambiente
 
-| Variável | Default (dev) | Descrição |
-|----------|---------------|-----------|
-| `RabbitMQ__Host` | `localhost` | Host do RabbitMQ (usado se `Messaging__Provider` não for `Sqs`) |
-| `RabbitMQ__Username` | (obrigatório, sem padrão) | Usuário RabbitMQ |
-| `RabbitMQ__Password` | (obrigatório, sem padrão) | Senha RabbitMQ |
-| `Messaging__Provider` | — | `Sqs` usa Amazon SQS/SNS (deploy AWS). Vazio + `RabbitMQ__Host` → RabbitMQ. Nenhum dos dois → in-memory |
-| `AWS__Region` | `sa-east-1` | Região usada pelo transporte SQS/SNS quando `Messaging__Provider=Sqs` |
+| Variável | Obrigatória | O que é |
+|---|---|---|
+| `RabbitMQ__Host` · `RabbitMQ__Username` · `RabbitMQ__Password` | sim (local) | broker; sem usuário/senha o worker não sobe |
+| `Messaging__Provider` | não | `Sqs` = SQS/SNS; vazio + `RabbitMQ__Host` = RabbitMQ; nenhum = em memória |
+| `AWS__Region` | não (`sa-east-1`) | região do SQS/SNS |
 
-> Em produção, RabbitMQ é exposto via env vars (nunca hardcoded no appsettings).
->
-> **Mensageria:** transporte escolhido em runtime (`Program.cs`) — os consumers não mudam entre
-> RabbitMQ e SQS. Este repo ainda **não tem infra/deploy AWS** — para rodar com SQS de verdade
-> (não só localmente), vai precisar de uma Task Role do ECS com permissão SQS/SNS quando a infra
-> for criada (ver o mesmo padrão em `fcg-users-api/infra/ecs.tf`).
-> O `nuget.config` usa `%NUGET_AUTH_TOKEN%` (PAT com scope `read:packages`) para
-> restaurar o pacote `FCGames.IntegrationEvents` do feed do GitHub Packages.
+## Rodar local
 
-## Rodando localmente
-
-Pré-requisitos: .NET 10 SDK e um RabbitMQ acessível (ex.: `docker run -d -p 5672:5672 -p 15672:15672 rabbitmq:3-management`).
+Jeito recomendado: `docker compose up` no
+[`fcg-orchestration`](https://github.com/FIAP-POS-TECH-TEAM-10/fcg-orchestration) e
+`docker compose logs -f notifications-worker`. Só este serviço:
 
 ```bash
-cd app/src
-dotnet restore Fiap.FCGames.Notifications.slnx   # requer NUGET_AUTH_TOKEN se o pacote não estiver em cache
-dotnet build   Fiap.FCGames.Notifications.slnx
-dotnet run --project Fiap.FCGames.Notifications.Worker   # escuta em http://localhost:5004
+export NUGET_AUTH_TOKEN=$(gh auth token) RABBITMQ__HOST=localhost RABBITMQ__USERNAME=<usuario> RABBITMQ__PASSWORD=<senha>
+dotnet run --project app/src/Fiap.FCGames.Notifications.Worker    # /health em http://localhost:5004
 ```
 
-## Estrutura
-
-```
-app/src/
-  Fiap.FCGames.Notifications.Worker/       projeto único (host do worker)
-    Program.cs                             fiação MassTransit + /health
-    Consumers/                             UsuarioCriado + PagamentoProcessado (apenas logs)
-    Middleware/                            propagação do x-correlation-ID nos logs
-```
-
-> O host (`.Worker`) usa o SDK web (`Microsoft.NET.Sdk.Web`) **apenas** para expor o
-> endpoint `/health` exigido pelos probes do k8s; o MassTransit roda como hosted
-> service em background. Não há controllers nem pipeline MVC.
-
-> Serviço **stateless** e orientado a eventos — sem `Infra`/EF Core, e sem as camadas
-> `Application`/`Domain` (não há CQRS, validação HTTP nem regras de domínio aqui).
-
-> **Rodando fora do docker-compose:** exporte `RABBITMQ__USERNAME` e `RABBITMQ__PASSWORD` (não há valores padrão no código nem nos `appsettings`; o compose do `fcg-orchestration` os injeta a partir do `.env`).
+Para Kind/Docker Desktop local, ver [`k8s/README.md`](k8s/README.md).

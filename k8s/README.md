@@ -1,50 +1,8 @@
-# Notifications Worker - Kubernetes Deployment
+# notifications-worker em Kubernetes local (Kind / Docker Desktop)
 
-Este diretório contém os manifestos Kubernetes para deploy do microsserviço Notifications Worker.
+Só para cluster local. Na AWS as notificações são a Lambda `fcg-notifications-lambda`.
 
-## Recursos
-
-- **Deployment**: Define os Pods do Worker
-- **Service**: Expõe o Worker para health checks
-- **ConfigMap**: Configurações não sensíveis
-- **Secret**: Credenciais do RabbitMQ
-
-## Deploy
-
-### 1. Build da Imagem Docker
-
-```bash
-docker build -t fcg-notifications-worker:latest .
-```
-
-### 2. Aplicar Manifestos
-
-> **Atenção:** crie o Secret (seção abaixo) **antes** de aplicar e não use `kubectl apply -f k8s/` na pasta inteira: isso aplicaria o `secret.yaml` modelo (valores `REPLACE_ME`) por cima do Secret real.
-
-```bash
-kubectl apply -f k8s/configmap.yaml -f k8s/deployment.yaml -f k8s/service.yaml
-```
-
-### 3. Verificar Status
-
-```bash
-kubectl get pods -n fcgames -l app=notifications-worker
-kubectl logs -n fcgames -l app=notifications-worker -f
-```
-
-## Configurações
-
-### ConfigMap (configmap.yaml)
-- `rabbitmq-host`: Host do RabbitMQ
-- `aspnetcore-urls`: URLs que a aplicação escuta
-
-### Secret (secret.yaml)
-- `rabbitmq-username`: Usuário do RabbitMQ
-- `rabbitmq-password`: Senha do RabbitMQ
-
-**IMPORTANTE**: Altere os valores dos Secrets em produção!
-
-O `secret.yaml` versionado é só um **modelo** (valores `REPLACE_ME`). Crie o Secret real com as suas credenciais:
+1. Crie o Secret real (o `secret.yaml` daqui é só modelo, com `REPLACE_ME`):
 
 ```bash
 kubectl create secret generic notifications-worker-secret -n fcgames \
@@ -52,33 +10,16 @@ kubectl create secret generic notifications-worker-secret -n fcgames \
   --from-literal=rabbitmq-password="$RABBITMQ__PASSWORD"
 ```
 
-## Acesso
-
-### Port Forward para health check
+2. Aplique os demais manifests (não use `kubectl apply -f k8s/`: aplicaria o modelo por cima do Secret):
 
 ```bash
-kubectl port-forward -n fcgames svc/notifications-worker 5004:80
+kubectl apply -f k8s/configmap.yaml -f k8s/deployment.yaml -f k8s/service.yaml
 ```
 
-Acesse: http://localhost:5004/health
-
-## Eventos Consumidos
-
-- **UserCreatedEvent**: Envia e-mail de boas-vindas
-- **PaymentProcessedEvent**: Envia e-mail de confirmação de compra (se aprovado)
-
-## Simulação de E-mails
-
-Este serviço **simula** o envio de e-mails logando as mensagens no console. Para ver os "e-mails" enviados, verifique os logs:
+3. Veja os logs das notificações:
 
 ```bash
 kubectl logs -n fcgames -l app=notifications-worker -f
 ```
 
-## Dependências
-
-- RabbitMQ (deve estar rodando no namespace fcgames)
-
-## Nota
-
-Este é um serviço Worker puro (consumer), sem endpoints REST. O Service é criado apenas para possibilitar health checks.
+Precisa do RabbitMQ no namespace `fcgames` (manifests em `fcg-orchestration/k8s`).
