@@ -2,6 +2,13 @@
 
 Só para cluster local. Na AWS as notificações são a Lambda `fcg-notifications-lambda`.
 
+0. Gere a imagem com a tag que o `deployment.yaml` espera (no Kind, carregue no cluster):
+
+```bash
+docker build --build-arg NUGET_AUTH_TOKEN="$NUGET_AUTH_TOKEN" -t fcg-notifications-worker:latest .
+kind load docker-image fcg-notifications-worker:latest    # só no Kind
+```
+
 1. Crie o Secret real (o `secret.yaml` daqui é só modelo, com `REPLACE_ME`):
 
 ```bash
